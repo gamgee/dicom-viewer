@@ -14,7 +14,7 @@ jobs:
   build:
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: maxim-lobanov/setup-xcode@v1
         with:
@@ -37,7 +37,7 @@ jobs:
           lipo -archs "build/CT Viewer.app/Contents/MacOS/CTViewer"
 
       - name: Cache sample CT
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: sample-data
           key: lidc-idri-0001
@@ -53,7 +53,7 @@ jobs:
       - name: Package
         run: ditto -c -k --keepParent "build/CT Viewer.app" CT-Viewer.zip
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: CT-Viewer
           path: CT-Viewer.zip
@@ -65,7 +65,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: CT-Viewer
 
