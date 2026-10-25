@@ -1,0 +1,79 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Toolchain
+        run: swift --version
+
+      - name: Build app
+        env:
+          UNIVERSAL: "1"
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            export VERSION="${GITHUB_REF_NAME#v}"
+          else
+            export VERSION="0.0.0"
+          fi
+          ./scripts/build-app.sh
+          lipo -archs "build/CT Viewer.app/Contents/MacOS/CTViewer"
+
+      - name: Cache sample CT
+        uses: actions/cache@v4
+        with:
+          path: sample-data
+          key: lidc-idri-0001
+
+      - name: Smoke test with sample CT
+        run: |
+          [ -d sample-data/LIDC-IDRI-0001 ] || ./scripts/fetch-sample.sh
+          "build/CT Viewer.app/Contents/MacOS/CTViewer" --selftest sample-data "$RUNNER_TEMP/selftest" | tee selftest.log
+          grep -q "512x512x133" selftest.log
+          grep -q "MPR true" selftest.log
+          ls "$RUNNER_TEMP/selftest"/*.png
+
+      - name: Package
+        run: ditto -c -k --keepParent "build/CT Viewer.app" CT-Viewer.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CT-Viewer
+          path: CT-Viewer.zip
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: CT-Viewer
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" CT-Viewer.zip \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "CT Viewer $GITHUB_REF_NAME" \
+            --generate-notes

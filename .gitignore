@@ -1,0 +1,13 @@
+.build/
+build/
+.swiftpm/
+*.xcodeproj/
+.DS_Store
+
+# Medical images never go into the repository
+sample-data/
+*.iso
+*.dcm
+*.bin
+*.cue
+DICOMDIR
